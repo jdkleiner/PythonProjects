@@ -2,9 +2,9 @@ def main():
     height = get_height()
     for i in range(1, height + 1):
         # add white space buffer
-        print(" " * (height - i), end = '')
+        print(" " * (height - i), end='')
         # add left pyramid block(s), spaces and right pyramid block(s)
-        print("#" * i,"","#" * i, end="\n")
+        print("#" * i, "", "#" * i, end="\n")
 
 
 def get_height():
@@ -17,5 +17,6 @@ def get_height():
         except ValueError:
             print("That's not an integer!")
     return n
+
 
 main()
