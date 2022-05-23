@@ -1,2 +1,2 @@
 # PythonProjects
-Learning Python via CS50 2022
+Python Development Projects
