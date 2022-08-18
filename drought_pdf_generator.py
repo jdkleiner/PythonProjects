@@ -6,8 +6,20 @@ from datetime import date
 
 def main():
 
+    precip_df = get_data_vahydro(viewurl = 'precipitation-drought-timeseries-export')
+    # print(precip_df.head())
+    precip_df = sqldf("""SELECT `drought_region` AS region, 
+                                `startdate` AS startdate, 
+                                `enddate` AS enddate,
+                                `[Water_Year_pct_of_Normal]_propvalue` AS 'water yr % of normal',
+                                `[Drought_Status]_propcode` AS status
+                            FROM precip_df
+                            WHERE `[Drought_Status]_propcode` > 0""")
+    print(f'Precipitation Indicators:\n{precip_df}\n')
+    precip_pd = pd.DataFrame(precip_df)
+
     sw_df = get_data_vahydro(viewurl = 'streamflow-drought-timeseries-all-export')
-    # print(sw_df.head())
+    print(sw_df.head())
 
     # reutrn only the 11 official drought evaluation region stream gage indicators
     sw_official_df = sw_df[pd.notna(sw_df)['drought_evaluation_region'] == True]
@@ -22,6 +34,7 @@ def main():
     sw_status_df = sqldf("""SELECT `drought_evaluation_region` AS region, 
                                 `[q_7day_cfs]_tstime` AS tstime, 
                                 `[q_7day_cfs]_tsendtime` AS tsendtime, 
+                                `[nonex_pct]_propvalue` AS 'percentile',
                                 `[nonex_pct]_propcode` AS status, 
                                 `drought_status_override` AS override,
                                 CASE
@@ -36,7 +49,8 @@ def main():
 
     sw_status_df_all = sqldf("""SELECT `containing_drought_region` AS region, 
                                 `[q_7day_cfs]_tstime` AS tstime, 
-                                `[q_7day_cfs]_tsendtime` AS tsendtime, 
+                                `[q_7day_cfs]_tsendtime` AS tsendtime,
+                                `[nonex_pct]_propvalue` AS 'percentile',
                                 `[nonex_pct]_propcode` AS status, 
                                 `drought_status_override` AS override,
                                 CASE
@@ -56,7 +70,8 @@ def main():
     # retuen the maximum status by region for those regions with multiple gw indicators
     gw_max_status_df = sqldf("""SELECT `drought_evaluation_region` AS region, 
                                     `[gwl_7day_ft]_tstime` AS tstime, 
-                                    `[gwl_7day_ft]_tsendtime` AS tsendtime, 
+                                    `[gwl_7day_ft]_tsendtime` AS tsendtime,
+                                    `[nonex_pct]_propvalue` AS 'percentile', 
                                     MAX(`[nonex_pct]_propcode`) AS max_status, 
                                     `drought_status_override` AS override,
                                     CASE
@@ -68,10 +83,6 @@ def main():
                                 GROUP BY `drought_evaluation_region`""")
     print(f'Groundwater Indicators:\n{gw_max_status_df}\n')
     gw_pd = pd.DataFrame(gw_max_status_df)
-    gw_str= gw_pd.applymap(str)  # Convert all data inside dataframe into string type
-    gw_str_columns = [list(gw_str)]  # Get list of dataframe columns
-    gw_str_rows = gw_str.values.tolist()  # Get list of dataframe rows
-    gw_all_data = gw_str_columns + gw_str_rows  # Combine columns and rows in one list
 
 
     res_df = get_data_vahydro(viewurl = 'reservoir-drought-features-export')
@@ -85,13 +96,13 @@ def main():
     class PDF(FPDF):
         def header(self):
             # self.image('example.jpg', 50, 30, 100)
-            self.set_font('Arial', 'B', 15)
-            self.cell(0, 10, title, 1, 1, 'C')
+            self.set_font('Times', 'B', 15)
+            self.cell(w=0, h=10, txt=title, border=1, align='C', new_x='LMARGIN', new_y='NEXT')
 
         def footer(self):
             self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
-            self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
+            self.set_font('Times', 'I', 8)
+            self.cell(w=0, h=10, txt='Page ' + str(self.page_no()) + '/{nb}', align='C', new_x='LMARGIN', new_y='NEXT')
 
 
 
@@ -101,19 +112,6 @@ def main():
     print("Today's date:", today)
     title = "Daily Drought Indicator Status: {}".format(today)
 
-    df = sw_pd
-    # df = sw_all_pd
-
-    sw_all_pd = sw_all_pd.applymap(str)  # Convert all data inside dataframe into string type
-    sw_all_pd_columns = [list(sw_all_pd)]  # Get list of dataframe columns
-    sw_all_pd_rows = sw_all_pd.values.tolist()  # Get list of dataframe rows
-    sw_all_data = sw_all_pd_columns + sw_all_pd_rows  # Combine columns and rows in one list
-
-    # # format dataframe as a table within the pdf doc
-    # df = df.applymap(str)  # Convert all data inside dataframe into string type
-    # columns = [list(df)]  # Get list of dataframe columns
-    # rows = df.values.tolist()  # Get list of dataframe rows
-    # data = columns + rows  # Combine columns and rows in one list
 
     # Start pdf creating
     # pdf = FPDF()
@@ -121,61 +119,56 @@ def main():
     pdf.add_page()
     pdf.set_font("Times", size=10)
     pdf.ln(4)
-    # pdf.cell(ln=1, h=5.0, align='L', w=0, txt="Surface Water Indicators (All):", border=0)
     line_height = pdf.font_size * 2.5
     # col_width = pdf.epw / 4  # distribute content evenly
-    # col_width = 20
 
-    # format dataframe as a table within the pdf doc
-    df = df.applymap(str)  # Convert all data inside dataframe into string type
-    columns = [list(df)]  # Get list of dataframe columns
-    rows = df.values.tolist()  # Get list of dataframe rows
-    data = columns + rows  # Combine columns and rows in one list
+    # section of tables showing indicators that are below normal drought status
+    pdf.set_font("Times", style = 'U', size=12)
+    pdf.cell(w=0, h=10, txt="Indicators Below Normal:", new_x="LMARGIN", new_y="NEXT")
 
-    def render_table(data):
-        for row in data:
-            for datum in row:
-                pdf.multi_cell(
-                    20,
-                    line_height,
-                    datum,
-                    border=1,
-                    new_y="TOP",
-                    max_line_height=pdf.font_size,
-                )
-            pdf.ln(line_height)
-        pdf.ln(4)
-
+    pdf.set_font("Times", size=10)
+    pdf.cell(txt="Precipitation Indicators:", new_x="LMARGIN", new_y="NEXT")
+    render_table(pdf,precip_pd,line_height)
     pdf.cell(txt="Surface Water Indicators:", new_x="LMARGIN", new_y="NEXT")
-    render_table(data)
-    pdf.cell(txt="Surface Water Indicators (All):", new_x="LMARGIN", new_y="NEXT")
-    render_table(sw_all_data)
+    render_table(pdf,sw_pd,line_height)
     pdf.cell(txt="Groundwater Indicators:", new_x="LMARGIN", new_y="NEXT")
-    render_table(gw_all_data)
+    render_table(pdf,gw_pd,line_height)
+
+    # section of tables showing all dorught monitoring indicators
+    pdf.set_font("Times", style = 'U', size=12)
+    pdf.cell(w=0, h=10, txt="Indicators All:", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Times", size=10)
+    pdf.cell(txt="Surface Water Indicators (All):", new_x="LMARGIN", new_y="NEXT")
+    render_table(pdf,sw_all_pd,line_height)
+
 
     output_filename = "Daily_Drought_Indicator_Status_{}.pdf".format(date.today().strftime('%m.%d.%Y'))
     pdf.output(output_filename)
     # pdf.output('test16.pdf')
 
 
-# def df_to_table(df,pdf):
 
-#     line_height = pdf.font_size * 2.5
-#     col_width = 20
+def render_table(pdf,data_pd,line_height):
     
-#     for row in df:
-#         for datum in row:
-#             pdf.multi_cell(
-#                 col_width,
-#                 line_height,
-#                 datum,
-#                 border=1,
-#                 new_y="TOP",
-#                 max_line_height=pdf.font_size,
-#             )
-#         pdf.ln(line_height)
+    # format pandas dataframe as list (required for rendering the table in pdf)
+    data_str= data_pd.applymap(str)  # Convert all data inside dataframe into string type
+    data_str_columns = [list(data_str)]  # Get list of dataframe columns
+    data_str_rows = data_str.values.tolist()  # Get list of dataframe rows
+    data_all_data = data_str_columns + data_str_rows  # Combine columns and rows in one list
 
-#     return table
+    # render the table
+    for row in data_all_data:
+        for datum in row:
+            pdf.multi_cell(
+                20,
+                line_height,
+                datum,
+                border=1,
+                new_y="TOP",
+                max_line_height=pdf.font_size,
+            )
+        pdf.ln(line_height)
+    pdf.ln(4)
 
 
 def get_data_vahydro(viewurl, baseurl = "http://deq1.bse.vt.edu:81/d.dh"):
