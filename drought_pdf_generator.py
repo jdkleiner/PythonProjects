@@ -15,11 +15,11 @@ def main():
                                 `[Drought_Status]_propcode` AS status
                             FROM precip_df
                             WHERE `[Drought_Status]_propcode` > 0""")
-    print(f'Precipitation Indicators:\n{precip_df}\n')
+    # print(f'Precipitation Indicators:\n{precip_df}\n')
     precip_pd = pd.DataFrame(precip_df)
 
     sw_df = get_data_vahydro(viewurl = 'streamflow-drought-timeseries-all-export')
-    print(sw_df.head())
+    # print(sw_df.head())
 
     # reutrn only the 11 official drought evaluation region stream gage indicators
     sw_official_df = sw_df[pd.notna(sw_df)['drought_evaluation_region'] == True]
@@ -44,7 +44,7 @@ def main():
                             FROM sw_official_df
                             WHERE `[nonex_pct]_propcode` > 0""")
                             # FROM sw_official_df""") 
-    print(f'Surface Water Indicators:\n{sw_status_df}\n')
+    # print(f'Surface Water Indicators:\n{sw_status_df}\n')
     sw_pd = pd.DataFrame(sw_status_df)
 
     sw_status_df_all = sqldf("""SELECT `containing_drought_region` AS region, 
@@ -59,7 +59,7 @@ def main():
                                 END AS final_status
                             FROM sw_df
                             WHERE `[nonex_pct]_propcode` > 0""")
-    print(f'Surface Water Indicators (All):\n{sw_status_df_all}\n')
+    # print(f'Surface Water Indicators (All):\n{sw_status_df_all}\n')
     sw_all_pd = pd.DataFrame(sw_status_df_all)
 
 
@@ -81,7 +81,7 @@ def main():
                                 FROM gw_df
                                 WHERE `[nonex_pct]_propcode` > 0
                                 GROUP BY `drought_evaluation_region`""")
-    print(f'Groundwater Indicators:\n{gw_max_status_df}\n')
+    # print(f'Groundwater Indicators:\n{gw_max_status_df}\n')
     gw_pd = pd.DataFrame(gw_max_status_df)
 
 
@@ -133,6 +133,8 @@ def main():
     render_table(pdf,sw_pd,line_height)
     pdf.cell(txt="Groundwater Indicators:", new_x="LMARGIN", new_y="NEXT")
     render_table(pdf,gw_pd,line_height)
+
+    pdf.image('https://deq1.bse.vt.edu/drought/state/images/maps/virginia_drought.png', w=100)
 
     # section of tables showing all dorught monitoring indicators
     pdf.set_font("Times", style = 'U', size=12)
