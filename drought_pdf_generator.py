@@ -23,6 +23,7 @@ def main():
 
     # reutrn only the 11 official drought evaluation region stream gage indicators
     sw_official_df = sw_df[pd.notna(sw_df)['drought_evaluation_region'] == True]
+    # print(sw_official_df)
 
     # return only those with a below normal drought status:
     # pandas method below:
@@ -47,18 +48,40 @@ def main():
     # print(f'Surface Water Indicators:\n{sw_status_df}\n')
     sw_pd = pd.DataFrame(sw_status_df)
 
-    sw_status_df_all = sqldf("""SELECT `containing_drought_region` AS region, 
-                                `[q_7day_cfs]_tstime` AS tstime, 
-                                `[q_7day_cfs]_tsendtime` AS tsendtime,
-                                `[nonex_pct]_propvalue` AS 'percentile',
-                                `[nonex_pct]_propcode` AS status, 
-                                `drought_status_override` AS override,
-                                CASE
-                                    WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
-                                    ELSE `[nonex_pct]_propcode`
-                                END AS final_status
-                            FROM sw_df
-                            WHERE `[nonex_pct]_propcode` > 0""")
+    # sw_status_df_all = sqldf("""SELECT `containing_drought_region` AS region, 
+    #                             `[q_7day_cfs]_tstime` AS tstime, 
+    #                             `[q_7day_cfs]_tsendtime` AS tsendtime,
+    #                             `[nonex_pct]_propvalue` AS 'percentile',
+    #                             `[nonex_pct]_propcode` AS status, 
+    #                             `drought_status_override` AS override,
+    #                             CASE
+    #                                 WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
+    #                                 ELSE `[nonex_pct]_propcode`
+    #                             END AS final_status
+    #                         FROM sw_df
+    #                         WHERE `[nonex_pct]_propcode` > 0""")
+
+    # format table using CTE temporary table
+    sw_status_df_all = sqldf("""WITH cte AS(
+                                    SELECT  CASE
+                                            WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
+                                                ELSE `[nonex_pct]_propcode`
+                                            END AS final_status,
+                                            COUNT(`containing_drought_region`) AS gage_count
+                                    FROM sw_df
+                                    WHERE `[nonex_pct]_propcode` > 0
+                                    GROUP BY final_status 
+                                )
+    
+                                SELECT  CASE
+                                            WHEN `final_status` = 1 THEN 'watch'
+                                            WHEN `final_status` = 2 THEN 'warning'
+                                            WHEN `final_status` = 3 THEN 'emergency'
+                                        END AS gage_status,
+                                        gage_count
+                                FROM cte
+                                """)
+
     # print(f'Surface Water Indicators (All):\n{sw_status_df_all}\n')
     sw_all_pd = pd.DataFrame(sw_status_df_all)
 
