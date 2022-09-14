@@ -39,7 +39,7 @@ def main():
                                 `[nonex_pct]_propcode` AS status, 
                                 `drought_status_override` AS override,
                                 CASE
-                                    WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
+                                    WHEN `drought_status_override` != `[nonex_pct]_propcode` THEN `drought_status_override`
                                     ELSE `[nonex_pct]_propcode`
                                 END AS final_status
                             FROM sw_official_df
@@ -61,7 +61,7 @@ def main():
     #                         FROM sw_df
     #                         WHERE `[nonex_pct]_propcode` > 0""")
 
-    # format table using CTE temporary table
+    # format table using CTE temporary result set
     sw_status_df_all = sqldf("""WITH cte AS(
                                     SELECT  CASE
                                             WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
@@ -81,6 +81,7 @@ def main():
                                         gage_count
                                 FROM cte
                                 """)
+
 
     # print(f'Surface Water Indicators (All):\n{sw_status_df_all}\n')
     sw_all_pd = pd.DataFrame(sw_status_df_all)
