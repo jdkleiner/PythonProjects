@@ -1,10 +1,10 @@
 # Import libraries
 import pandas as pd
 from pandasql import sqldf
-from reportlab.pdfgen import canvas
+# from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.platypus.tables import Table,TableStyle,colors
 from reportlab.lib.styles import getSampleStyleSheet
 from datetime import date
@@ -147,6 +147,11 @@ gw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,
 elements=[]
 title = "DEQ Daily Drought Indicator Status: {}".format(today)
 elements.append(Paragraph(title, styles['Title']))
+
+img_file = "https://deq1.bse.vt.edu/drought/state/images/maps/virginia_drought.png"
+# map_img = Image(img_file, 3*inch, 3*inch)
+map_img = Image(img_file, 5*inch, 3*inch)
+elements.append(map_img)
 
 elements.append(Spacer(1,0.2*inch))
 precip_text = Paragraph("Precipitation Indicators:", styles['Heading3'])
