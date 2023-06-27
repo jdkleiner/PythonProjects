@@ -164,20 +164,18 @@ my_path='C:\\Users\\nrf46657\\Desktop\\GitHub\\pydro-tools\\reportlab_test.pdf'
 my_doc = SimpleDocTemplate(my_path,pagesize=letter)
 
 
-c_width=[2.0*inch,1*inch,1*inch,1*inch,0.7*inch,0.7*inch,0.7*inch] # width of the columns 
+c_width=[0.7*inch,2.0*inch,1*inch,1*inch,1*inch,0.7*inch,0.7*inch] # width of the columns 
 
 # print(precip_pd)
 # ls = []
 # print(precip_pd.index.tolist())
 precip_data=precip_pd.values.tolist() # create a list using Dataframe
-print(precip_data)
-print(precip_data[1])
-precip_data2 = precip_pd.index.tolist() + precip_data
-print(precip_data2)
 
-# print(precip_data[1])
-# precip_data.insert(0, precip_pd.index.tolist())
-# print(precip_data[1].append(precip_pd.index.tolist()))
+precip_data_nested = precip_data[0]
+precip_index =  precip_pd.index.tolist()
+precip_data_nested.insert(0, precip_index[0])
+precip_data = [precip_data_nested]
+
 precip_colnames = [['#', 'region', 'startdate', 'enddate', 'water yr %\nof normal', 'status','','']]
 precip_data = precip_colnames + precip_data
 precip_t=Table(precip_data,colWidths=c_width,repeatRows=1)
@@ -185,7 +183,27 @@ precip_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),
 
 
 sw_data=sw_pd.values.tolist() # create a list using Dataframe
-colnames = [['region', 'tstime', 'tsendtime', 'percentile', 'status', 'override', 'final_status']]
+print(sw_data)
+print(len(sw_data))
+placeholder = []
+for i in range(len(sw_data)):
+    print(sw_data[i])
+    sw_data_nested = sw_data[i]
+    sw_data_nested.insert(0, i+1)
+    print(sw_data_nested)
+    placeholder.append(sw_data_nested)
+print(placeholder)
+sw_data = placeholder
+
+# sw_data_nested = sw_data[0]
+# # print(sw_data_nested)
+# sw_index =  sw_pd.index.tolist()
+# # print(sw_index)
+# sw_data_nested.insert(0, sw_index[0])
+# # print(sw_data_nested)
+# sw_data = [sw_data_nested]
+
+colnames = [['#','region', 'tstime', 'tsendtime', 'percentile', 'status', 'override', 'final_status']]
 sw_data = colnames + sw_data
 sw_t=Table(sw_data,colWidths=c_width,repeatRows=1)
 sw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgreen),('VALIGN',(0,0),(-1,0),'TOP')]))
