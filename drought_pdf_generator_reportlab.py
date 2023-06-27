@@ -1,9 +1,13 @@
 # Import libraries
 import pandas as pd
 from pandasql import sqldf
-# from fpdf import FPDF
 from reportlab.pdfgen import canvas
-# from datetime import date
+from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus.tables import Table,TableStyle,colors
+from reportlab.lib.styles import getSampleStyleSheet
+from datetime import date
 
 # def get_data_vahydro(viewurl, baseurl = "http://deq1.bse.vt.edu:81/d.dh"):
 def get_data_vahydro(viewurl, baseurl = "https://deq1.bse.vt.edu/d.dh"):
@@ -12,29 +16,16 @@ def get_data_vahydro(viewurl, baseurl = "https://deq1.bse.vt.edu/d.dh"):
     df=pd.read_csv(url)
     return df
 
-# def render_table(pdf,data_pd,line_height):
-#     # format pandas dataframe as list (required for rendering the table in pdf)
-#     data_str= data_pd.applymap(str)  # Convert all data inside dataframe into string type
-#     data_str_columns = [list(data_str)]  # Get list of dataframe columns
-#     data_str_rows = data_str.values.tolist()  # Get list of dataframe rows
-#     data_all_data = data_str_columns + data_str_rows  # Combine columns and rows in one list
-#     # render the table
-#     for row in data_all_data:
-#         for datum in row:
-#             pdf.multi_cell(
-#                 20,
-#                 line_height,
-#                 datum,
-#                 border=1,
-#                 new_y="TOP",
-#                 max_line_height=pdf.font_size,
-#             )
-#         pdf.ln(line_height)
-#     pdf.ln(4)
+def add_rownum_to_nested_list(data_list):
+    data_list_WithRowNums = []
+    for i in range(len(data_list)):
+        data_list_unnested = data_list[i]
+        data_list_unnested.insert(0, i+1)
+        data_list_WithRowNums.append(data_list_unnested)
+    return(data_list_WithRowNums)
 
-# def process_data(pdf,data_pd,line_height):
+
 precip_df = get_data_vahydro(viewurl = 'precipitation-drought-timeseries-export')
-# print(precip_df.head())
 precip_df = sqldf("""SELECT `drought_region` AS region, 
                             `startdate` AS startdate, 
                             `enddate` AS enddate,
@@ -46,11 +37,9 @@ precip_df = sqldf("""SELECT `drought_region` AS region,
 precip_pd = pd.DataFrame(precip_df)
 
 sw_df = get_data_vahydro(viewurl = 'streamflow-drought-timeseries-all-export')
-# print(sw_df.head())
 
 # reutrn only the 11 official drought evaluation region stream gage indicators
 sw_official_df = sw_df[pd.notna(sw_df)['drought_evaluation_region'] == True]
-# print(sw_official_df)
 
 # sqldf method below:
 # note: 3-quote method allows formatting query across multiple lines
@@ -94,9 +83,7 @@ sw_status_df_all = sqldf("""WITH cte AS(
 # print(f'Surface Water Indicators (All):\n{sw_status_df_all}\n')
 sw_all_pd = pd.DataFrame(sw_status_df_all)
 
-
 gw_df = get_data_vahydro(viewurl = 'groundwater-drought-timeseries-all-export')
-# print(gw_df.head())
 
 # return only those with a below normal drought status
 # retuen the maximum status by region for those regions with multiple gw indicators
@@ -122,113 +109,57 @@ res_df = get_data_vahydro(viewurl = 'reservoir-drought-features-export')
 res_status_df = sqldf("""SELECT `Drought Region`, `Feature Name`, `Drought Status (propcode)` 
                         FROM res_df 
                         """)
-# print(res_status_df)
-
-###############################################################
-# THIS WORKS:
-# from reportlab.lib.units import inch
-# from reportlab.lib.pagesizes import letter
-# from reportlab.platypus import SimpleDocTemplate
-# from reportlab.platypus.tables import Table,TableStyle,colors
-# my_path='C:\\Users\\jklei\\Desktop\\Learning Python\\pydro-tools\\reportlab_test.pdf' 
-# my_doc = SimpleDocTemplate(my_path,pagesize=letter)
-
-
-# c_width=[1*inch] # width of the columns 
-
-# sw_data=sw_pd.values.tolist() # create a list using Dataframe
-# sw_t=Table(sw_data,colWidths=c_width,repeatRows=1)
-# sw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgreen),('VALIGN',(0,0),(-1,0),'TOP')]))
-
-# gw_data=gw_pd.values.tolist() # create a list using Dataframe
-# gw_t=Table(gw_data,colWidths=c_width,repeatRows=1)
-# gw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgreen),('VALIGN',(0,0),(-1,0),'TOP')]))
-
-
-# elements=[]
-# elements.append(sw_t)
-# elements.append(gw_t)
-
-# my_doc.build(elements)
-###############################################################
-
 
 ###############################################################
 ###############################################################
-from reportlab.lib.units import inch
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.platypus.tables import Table,TableStyle,colors
+today = date.today()
+today = today.strftime('%m/%d/%Y')
+print("Today's date:", today)
+
 # my_path='C:\\Users\\jklei\\Desktop\\Learning Python\\pydro-tools\\reportlab_test2.pdf'
-my_path='C:\\Users\\nrf46657\\Desktop\\GitHub\\pydro-tools\\reportlab_test.pdf'
-my_doc = SimpleDocTemplate(my_path,pagesize=letter)
+# my_path='C:\\Users\\nrf46657\\Desktop\\GitHub\\pydro-tools\\reportlab_test.pdf'
+output_filename = "C:\\Users\\nrf46657\\Desktop\\GitHub\\pydro-tools\\" + "Daily_Drought_Indicator_Status_{}.pdf".format(date.today().strftime('%m.%d.%Y'))
+my_doc = SimpleDocTemplate(output_filename,pagesize=letter)
+styles = getSampleStyleSheet()
 
+c_width=[0.4*inch,2.0*inch,1*inch,1*inch,1*inch,0.7*inch,0.7*inch] # width of the columns 
 
-c_width=[0.7*inch,2.0*inch,1*inch,1*inch,1*inch,0.7*inch,0.7*inch] # width of the columns 
-
-# print(precip_pd)
-# ls = []
-# print(precip_pd.index.tolist())
 precip_data=precip_pd.values.tolist() # create a list using Dataframe
-
-precip_data_nested = precip_data[0]
-precip_index =  precip_pd.index.tolist()
-precip_data_nested.insert(0, precip_index[0])
-precip_data = [precip_data_nested]
-
+precip_data=add_rownum_to_nested_list(precip_data)
 precip_colnames = [['#', 'region', 'startdate', 'enddate', 'water yr %\nof normal', 'status','','']]
 precip_data = precip_colnames + precip_data
 precip_t=Table(precip_data,colWidths=c_width,repeatRows=1)
-precip_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgreen),('VALIGN',(0,0),(-1,0),'TOP')]))
-
+precip_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgrey),('VALIGN',(0,0),(-1,0),'TOP')]))
 
 sw_data=sw_pd.values.tolist() # create a list using Dataframe
-print(sw_data)
-print(len(sw_data))
-placeholder = []
-for i in range(len(sw_data)):
-    print(sw_data[i])
-    sw_data_nested = sw_data[i]
-    sw_data_nested.insert(0, i+1)
-    print(sw_data_nested)
-    placeholder.append(sw_data_nested)
-print(placeholder)
-sw_data = placeholder
-
-# sw_data_nested = sw_data[0]
-# # print(sw_data_nested)
-# sw_index =  sw_pd.index.tolist()
-# # print(sw_index)
-# sw_data_nested.insert(0, sw_index[0])
-# # print(sw_data_nested)
-# sw_data = [sw_data_nested]
-
+sw_data=add_rownum_to_nested_list(sw_data)
 colnames = [['#','region', 'tstime', 'tsendtime', 'percentile', 'status', 'override', 'final_status']]
 sw_data = colnames + sw_data
 sw_t=Table(sw_data,colWidths=c_width,repeatRows=1)
-sw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgreen),('VALIGN',(0,0),(-1,0),'TOP')]))
+sw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgrey),('VALIGN',(0,0),(-1,0),'TOP')]))
 
 gw_data=gw_pd.values.tolist() # create a list using Dataframe
+gw_data=add_rownum_to_nested_list(gw_data)
 gw_data = colnames + gw_data
 gw_t=Table(gw_data,colWidths=c_width,repeatRows=1)
-gw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgreen),('VALIGN',(0,0),(-1,0),'TOP')]))
+gw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgrey),('VALIGN',(0,0),(-1,0),'TOP')]))
 
 elements=[]
-# print(type(elements))
-# print(type(sw_t))
+title = "DEQ Daily Drought Indicator Status: {}".format(today)
+elements.append(Paragraph(title, styles['Title']))
 
 elements.append(Spacer(1,0.2*inch))
-precip_text = Paragraph("Precipitation Indicators:")
+precip_text = Paragraph("Precipitation Indicators:", styles['Heading3'])
 elements.append(precip_text)
 elements.append(precip_t)
 
 elements.append(Spacer(1,0.2*inch))
-sw_text = Paragraph("Surface Water Indicators:")
+sw_text = Paragraph("Surface Water Indicators:", styles['Heading3'])
 elements.append(sw_text)
 elements.append(sw_t)
 
 elements.append(Spacer(1,0.2*inch))
-gw_text = Paragraph("Groundwater Indicators:")
+gw_text = Paragraph("Groundwater Indicators:", styles['Heading3'])
 elements.append(gw_text)
 elements.append(gw_t)
 
