@@ -30,9 +30,14 @@ precip_df = sqldf("""SELECT `drought_region` AS region,
                             `startdate` AS startdate, 
                             `enddate` AS enddate,
                             `[Water_Year_pct_of_Normal]_propvalue` AS 'water yr % of normal',
-                            `[Drought_Status]_propcode` AS status
+                            CASE
+                                WHEN `[Drought_Status]_propcode` = 1 THEN 'Watch'
+                                WHEN `[Drought_Status]_propcode` = 2 THEN 'Warning'
+                                WHEN `[Drought_Status]_propcode` = 3 THEN 'Emergency'
+                            END AS status
                         FROM precip_df
-                        WHERE `[Drought_Status]_propcode` > 0""")
+                        WHERE `[Drought_Status]_propcode` > 0
+                        ORDER BY status DESC""")
 # print(f'Precipitation Indicators:\n{precip_df}\n')
 precip_pd = pd.DataFrame(precip_df)
 
@@ -43,18 +48,31 @@ sw_official_df = sw_df[pd.notna(sw_df)['drought_evaluation_region'] == True]
 
 # sqldf method below:
 # note: 3-quote method allows formatting query across multiple lines
+# sw_status_df = sqldf("""SELECT `drought_evaluation_region` AS region, 
+#                             `[q_7day_cfs]_tstime` AS tstime, 
+#                             `[q_7day_cfs]_tsendtime` AS tsendtime, 
+#                             `[nonex_pct]_propvalue` AS 'percentile',
+#                             `[nonex_pct]_propcode` AS status, 
+#                             `drought_status_override` AS override,
+#                             CASE
+#                                 WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
+#                                 ELSE `[nonex_pct]_propcode`
+#                             END AS final_status
+#                         FROM sw_official_df
+#                         WHERE `[nonex_pct]_propcode` > 0""")
+
 sw_status_df = sqldf("""SELECT `drought_evaluation_region` AS region, 
                             `[q_7day_cfs]_tstime` AS tstime, 
                             `[q_7day_cfs]_tsendtime` AS tsendtime, 
                             `[nonex_pct]_propvalue` AS 'percentile',
-                            `[nonex_pct]_propcode` AS status, 
-                            `drought_status_override` AS override,
                             CASE
-                                WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
-                                ELSE `[nonex_pct]_propcode`
-                            END AS final_status
+                                WHEN `[nonex_pct]_propcode` = 1 THEN 'Watch'
+                                WHEN `[nonex_pct]_propcode` = 2 THEN 'Warning'
+                                WHEN `[nonex_pct]_propcode` = 3 THEN 'Emergency'
+                            END AS status
                         FROM sw_official_df
-                        WHERE `[nonex_pct]_propcode` > 0""")
+                        WHERE `[nonex_pct]_propcode` > 0
+                        ORDER BY status DESC""")
                         # FROM sw_official_df""") 
 # print(f'Surface Water Indicators:\n{sw_status_df}\n')
 sw_pd = pd.DataFrame(sw_status_df)
@@ -87,19 +105,32 @@ gw_df = get_data_vahydro(viewurl = 'groundwater-drought-timeseries-all-export')
 
 # return only those with a below normal drought status
 # retuen the maximum status by region for those regions with multiple gw indicators
+# gw_max_status_df = sqldf("""SELECT `drought_evaluation_region` AS region, 
+#                                 `[gwl_7day_ft]_tstime` AS tstime, 
+#                                 `[gwl_7day_ft]_tsendtime` AS tsendtime,
+#                                 `[nonex_pct]_propvalue` AS 'percentile', 
+#                                 MAX(`[nonex_pct]_propcode`) AS max_status, 
+#                                 `drought_status_override` AS override,
+#                                 CASE
+#                                     WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
+#                                     ELSE `[nonex_pct]_propcode`
+#                                 END AS final_status
+#                             FROM gw_df
+#                             WHERE `[nonex_pct]_propcode` > 0
+#                             GROUP BY `drought_evaluation_region`""")
 gw_max_status_df = sqldf("""SELECT `drought_evaluation_region` AS region, 
                                 `[gwl_7day_ft]_tstime` AS tstime, 
                                 `[gwl_7day_ft]_tsendtime` AS tsendtime,
                                 `[nonex_pct]_propvalue` AS 'percentile', 
-                                MAX(`[nonex_pct]_propcode`) AS max_status, 
-                                `drought_status_override` AS override,
                                 CASE
-                                    WHEN `drought_status_override` < `[nonex_pct]_propcode` THEN `drought_status_override`
-                                    ELSE `[nonex_pct]_propcode`
-                                END AS final_status
+                                    WHEN MAX(`[nonex_pct]_propcode`) = 1 THEN 'Watch'
+                                    WHEN MAX(`[nonex_pct]_propcode`) = 2 THEN 'Warning'
+                                    WHEN MAX(`[nonex_pct]_propcode`) = 3 THEN 'Emergency'
+                                END AS max_status
                             FROM gw_df
                             WHERE `[nonex_pct]_propcode` > 0
-                            GROUP BY `drought_evaluation_region`""")
+                            GROUP BY `drought_evaluation_region`
+                            ORDER BY MAX(`[nonex_pct]_propcode`) DESC""")
 # print(f'Groundwater Indicators:\n{gw_max_status_df}\n')
 gw_pd = pd.DataFrame(gw_max_status_df)
 
@@ -126,14 +157,16 @@ c_width=[0.4*inch,2.0*inch,1*inch,1*inch,1*inch,0.7*inch,0.7*inch] # width of th
 
 precip_data=precip_pd.values.tolist() # create a list using Dataframe
 precip_data=add_rownum_to_nested_list(precip_data)
-precip_colnames = [['#', 'region', 'startdate', 'enddate', 'water yr %\nof normal', 'status','','']]
+# precip_colnames = [['#', 'region', 'startdate', 'enddate', 'water yr %\nof normal', 'status','','']]
+precip_colnames = [['#', 'Region', 'Start Date', 'End Date', 'Water Year\n% of Normal', 'Status']]
 precip_data = precip_colnames + precip_data
 precip_t=Table(precip_data,colWidths=c_width,repeatRows=1)
 precip_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgrey),('VALIGN',(0,0),(-1,0),'TOP')]))
 
 sw_data=sw_pd.values.tolist() # create a list using Dataframe
 sw_data=add_rownum_to_nested_list(sw_data)
-colnames = [['#','region', 'tstime', 'tsendtime', 'percentile', 'status', 'override', 'final_status']]
+# colnames = [['#','region', 'tstime', 'tsendtime', 'percentile', 'status', 'override', 'final_status']]
+colnames = [['#','Region', 'Start Date', 'End Date', 'Percentile', 'Status']]
 sw_data = colnames + sw_data
 sw_t=Table(sw_data,colWidths=c_width,repeatRows=1)
 sw_t.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),12),('BACKGROUND',(0,0),(-1,0),colors.lightgrey),('VALIGN',(0,0),(-1,0),'TOP')]))
